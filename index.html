@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Graph Avatar Studio</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d14; color: #c8c8d8; font-family: system-ui, sans-serif; font-size: 14px; padding: 2rem; }
+  h1 { font-size: 16px; font-weight: 500; color: #e8e8f0; margin-bottom: 1.5rem; letter-spacing: 0.05em; }
+  .studio { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+  .left { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+  .left svg { width: 100%; height: auto; }
+  .right { min-width: 0; }
+  .name-row { display: flex; gap: 8px; width: 100%; margin-bottom: 1.25rem; }
+  .name-row input { flex: 1; background: #1a1a2e; border: 0.5px solid #3a3a5a; color: #e8e8f0; border-radius: 6px; padding: 0 10px; height: 36px; font-size: 14px; outline: none; }
+  .name-row input:focus { border-color: #6060a0; }
+  .name-row button { background: #1a1a2e; border: 0.5px solid #3a3a5a; color: #c8c8d8; border-radius: 6px; padding: 0 16px; height: 36px; cursor: pointer; font-size: 13px; }
+  .name-row button:hover { border-color: #6060a0; color: #e8e8f0; }
+  .avatar-name { font-size: 13px; font-weight: 500; color: #e8e8f0; }
+  .enc-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 0.4rem; justify-content: center; }
+  .enc-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; border: 0.5px solid #3a3a5a; color: #8888aa; background: #1a1a2e; }
+  .sliders { display: flex; flex-direction: column; gap: 10px; }
+  .slider-row { display: grid; grid-template-columns: 90px 1fr 36px; align-items: center; gap: 8px; }
+  .slider-label { font-size: 12px; color: #8888aa; text-align: right; }
+  .slider-val { font-size: 12px; color: #e8e8f0; font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: #6060a0; }
+  .divider { border: none; border-top: 0.5px solid #2a2a3a; margin: 4px 0; }
+  .toggle-row { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px; }
+  .toggle-label { font-size: 12px; color: #8888aa; text-align: right; }
+  .toggle-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; background: none; border: none; padding: 0; }
+  .toggle-track { width: 32px; height: 18px; border-radius: 9px; border: 0.5px solid #3a3a5a; background: #1a1a2e; position: relative; transition: background 0.15s; flex-shrink: 0; }
+  .toggle-track.on { background: #2a2a5a; border-color: #6060a0; }
+  .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #6060a0; transition: transform 0.15s; }
+  .toggle-track.on .toggle-thumb { transform: translateX(14px); }
+  .toggle-text { font-size: 12px; color: #8888aa; }
+  .section-label { font-size: 12px; color: #6060a0; margin: 1.5rem 0 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
+  .gallery-item { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
+  .gallery-item:hover { opacity: 1; }
+  .gallery-item span { font-size: 11px; color: #8888aa; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 85px; }
+</style>
+</head>
+<body>
+<h1>graph avatar studio</h1>
+
+<div class="studio">
+  <div class="left">
+    <div id="mainAvatar"></div>
+    <div class="avatar-name" id="avatarName"></div>
+    <div class="enc-row" id="encRow"></div>
+    <div id="exportRow" style="display:flex;align-items:center;gap:4px;opacity:0.5;pointer-events:none;">
+      <span style="font-size:12px;color:#8888aa;margin-right:2px;">export SVG</span>
+      <button onclick="exportSVG(1)"  style="background:#1a1a2e;border:0.5px solid #3a3a5a;color:#c8c8d8;border-radius:4px;padding:0 9px;height:26px;cursor:pointer;font-size:11px;">1×</button>
+      <button onclick="exportSVG(2)"  style="background:#1a1a2e;border:0.5px solid #3a3a5a;color:#c8c8d8;border-radius:4px;padding:0 9px;height:26px;cursor:pointer;font-size:11px;">2×</button>
+      <button onclick="exportSVG(4)"  style="background:#1a1a2e;border:0.5px solid #3a3a5a;color:#c8c8d8;border-radius:4px;padding:0 9px;height:26px;cursor:pointer;font-size:11px;">4×</button>
+      <button onclick="exportSVG(8)"  style="background:#1a1a2e;border:0.5px solid #3a3a5a;color:#c8c8d8;border-radius:4px;padding:0 9px;height:26px;cursor:pointer;font-size:11px;">8×</button>
+    </div>
+  </div>
+  <div class="right">
+    <div class="name-row">
+      <input type="text" id="nameInput" placeholder="Enter a name…" value="Andreas" />
+      <button onclick="renderFromInput()">Generate</button>
+    </div>
+    <div class="sliders">
+      <div class="slider-row">
+        <span class="slider-label">node size</span>
+        <input type="range" id="sNodeSize" min="0.3" max="2.5" step="0.05" value="1" oninput="onSlider('nodeSize',this)"/>
+        <span class="slider-val" id="vNodeSize">1.0×</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">ring size</span>
+        <input type="range" id="sRingSize" min="0.3" max="2.5" step="0.05" value="1" oninput="onSlider('ringSize',this)"/>
+        <span class="slider-val" id="vRingSize">1.0×</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">halo size</span>
+        <input type="range" id="sHaloSize" min="0.3" max="3.0" step="0.05" value="1" oninput="onSlider('haloSize',this)"/>
+        <span class="slider-val" id="vHaloSize">1.0×</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">edge width</span>
+        <input type="range" id="sEdgeWidth" min="0.2" max="3.0" step="0.05" value="1" oninput="onSlider('edgeWidth',this)"/>
+        <span class="slider-val" id="vEdgeWidth">1.0×</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">clock pos</span>
+        <input type="range" id="sClockPos" min="1.0" max="2.0" step="0.05" value="1.65" oninput="onSlider('clockPos',this)"/>
+        <span class="slider-val" id="vClockPos">1.65</span>
+      </div>
+      <hr class="divider"/>
+      <div class="slider-row">
+        <span class="slider-label">hue shift</span>
+        <input type="range" id="sHue" min="0" max="359" step="1" value="0" oninput="onSlider('hue',this)"/>
+        <span class="slider-val" id="vHue">0°</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">saturation</span>
+        <input type="range" id="sSat" min="0" max="100" step="1" value="75" oninput="onSlider('sat',this)"/>
+        <span class="slider-val" id="vSat">75%</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label">lightness</span>
+        <input type="range" id="sLit" min="20" max="90" step="1" value="56" oninput="onSlider('lit',this)"/>
+        <span class="slider-val" id="vLit">56%</span>
+      </div>
+      <hr class="divider"/>
+      <div class="toggle-row">
+        <span class="toggle-label">inactive rings</span>
+        <button class="toggle-btn" onclick="onToggle()" id="toggleBtn" aria-label="Toggle inactive rings between absent and dim">
+          <div class="toggle-track on" id="toggleTrack"><div class="toggle-thumb"></div></div>
+          <span class="toggle-text" id="toggleText">dim</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label">examples</div>
+<div class="gallery" id="gallery"></div>
+
+<script>
+const EXAMPLES = ["Andreas","Alice","Bob","Zaid","Maria","Kenji","Priya","Luca","Fatima","Sam"];
+const MAIN_SIZE = 400;
+
+// 18 valid pairs — diameters (outer-to-outer, |i-j|===3) excluded
+const PAIRS = [];
+for (let i = 0; i < 7; i++)
+  for (let j = i+1; j < 7; j++) {
+    if (i >= 1 && j >= 1 && (j - i) === 3) continue;
+    PAIRS.push([i, j]);
+  }
+
+const overrides = { nodeSize:1, ringSize:1, haloSize:1, edgeWidth:1, clockPos:1.65, hue:0, sat:75, lit:56, ringDim:true };
+let currentParams = null;
+
+function hash32(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  return h;
+}
+
+// 64-symbol alphabet: A-Z a-z 0-9 - _
+const CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const MAX_LEN = 20; // clock encodes length externally; 20×6 = 120 bits, fits in 124 structural bits
+
+// Fixed 124-bit whitening mask — distributes bits visually for short usernames
+const WHITEN = (() => {
+  const w = new Uint8Array(124);
+  const w0 = hash32('graph-avatar-whiten-0');
+  const w1 = hash32('graph-avatar-whiten-1');
+  const w2 = hash32('graph-avatar-whiten-2');
+  const w3 = hash32('graph-avatar-whiten-3');
+  for (let i=0;i<32;i++) w[i]    = (w0 >>> i) & 1;
+  for (let i=0;i<32;i++) w[32+i] = (w1 >>> i) & 1;
+  for (let i=0;i<32;i++) w[64+i] = (w2 >>> i) & 1;
+  for (let i=0;i<28;i++) w[96+i] = (w3 >>> i) & 1;
+  return w;
+})();
+
+function bitsToFields(bits) {
+  let petalOuterMask=0, outerRingMask=0, centerRing=0, petalInnerAMask=0, petalInnerBMask=0;
+  let outerHaloMask=0, centerHalo=0, edgeMask=0, vesicaOuterMask=0, vesicaInnerMask=0;
+  let outerNode2Mask=0, outerRing2Mask=0, outerHalo2Mask=0;
+  let outerNodeMask=0, centerNode=0;
+  let outerPipMask=0, centerPip=0;
+  let vesicaOuterStrokeMask=0, vesicaInnerStrokeMask=0;
+  let boundaryNodeMask=0, boundaryRingMask=0, boundaryHaloMask=0;
+  for (let i=0;i<6;i++)  petalOuterMask       |= bits[i]     << i;
+  for (let i=0;i<6;i++)  outerRingMask        |= bits[6+i]   << i;
+  centerRing = bits[12];
+  for (let i=0;i<6;i++)  petalInnerAMask      |= bits[13+i]  << i;
+  for (let i=0;i<6;i++)  petalInnerBMask      |= bits[19+i]  << i;
+  for (let i=0;i<6;i++)  outerHaloMask        |= bits[25+i]  << i;
+  centerHalo = bits[31];
+  for (let i=0;i<18;i++) edgeMask             |= bits[32+i]  << i;
+  for (let i=0;i<6;i++)  vesicaOuterMask      |= bits[50+i]  << i;
+  for (let i=0;i<6;i++)  vesicaInnerMask      |= bits[56+i]  << i;
+  for (let i=0;i<6;i++)  outerNode2Mask       |= bits[62+i]  << i;
+  for (let i=0;i<6;i++)  outerRing2Mask       |= bits[68+i]  << i;
+  for (let i=0;i<6;i++)  outerHalo2Mask       |= bits[74+i]  << i;
+  for (let i=0;i<6;i++)  outerNodeMask        |= bits[80+i]  << i;
+  centerNode = bits[86];
+  for (let i=0;i<6;i++)  outerPipMask         |= bits[87+i]  << i;
+  centerPip = bits[93];
+  for (let i=0;i<6;i++)  vesicaOuterStrokeMask |= bits[94+i]  << i;
+  for (let i=0;i<6;i++)  vesicaInnerStrokeMask |= bits[100+i] << i;
+  for (let i=0;i<6;i++)  boundaryNodeMask      |= bits[106+i] << i;
+  for (let i=0;i<6;i++)  boundaryRingMask      |= bits[112+i] << i;
+  for (let i=0;i<6;i++)  boundaryHaloMask      |= bits[118+i] << i;
+  return { petalOuterMask, outerRingMask, centerRing, petalInnerAMask, petalInnerBMask,
+           outerHaloMask, centerHalo, edgeMask, vesicaOuterMask, vesicaInnerMask,
+           outerNode2Mask, outerRing2Mask, outerHalo2Mask, outerNodeMask, centerNode,
+           outerPipMask, centerPip, vesicaOuterStrokeMask, vesicaInnerStrokeMask,
+           boundaryNodeMask, boundaryRingMask, boundaryHaloMask };
+}
+
+function fieldsToBits(f) {
+  const bits = new Uint8Array(124);
+  for (let i=0;i<6;i++)  bits[i]    = (f.petalOuterMask  >> i) & 1;
+  for (let i=0;i<6;i++)  bits[6+i]  = (f.outerRingMask   >> i) & 1;
+  bits[12] = f.centerRing;
+  for (let i=0;i<6;i++)  bits[13+i] = (f.petalInnerAMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[19+i] = (f.petalInnerBMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[25+i] = (f.outerHaloMask   >> i) & 1;
+  bits[31] = f.centerHalo;
+  for (let i=0;i<18;i++) bits[32+i] = (f.edgeMask        >> i) & 1;
+  for (let i=0;i<6;i++)  bits[50+i] = (f.vesicaOuterMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[56+i] = (f.vesicaInnerMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[62+i] = (f.outerNode2Mask  >> i) & 1;
+  for (let i=0;i<6;i++)  bits[68+i] = (f.outerRing2Mask  >> i) & 1;
+  for (let i=0;i<6;i++)  bits[74+i] = (f.outerHalo2Mask  >> i) & 1;
+  for (let i=0;i<6;i++)  bits[80+i] = (f.outerNodeMask   >> i) & 1;
+  bits[86] = f.centerNode;
+  for (let i=0;i<6;i++)  bits[87+i]  = (f.outerPipMask          >> i) & 1;
+  bits[93] = f.centerPip;
+  for (let i=0;i<6;i++)  bits[94+i]  = (f.vesicaOuterStrokeMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[100+i] = (f.vesicaInnerStrokeMask >> i) & 1;
+  for (let i=0;i<6;i++)  bits[106+i] = (f.boundaryNodeMask      >> i) & 1;
+  for (let i=0;i<6;i++)  bits[112+i] = (f.boundaryRingMask      >> i) & 1;
+  for (let i=0;i<6;i++)  bits[118+i] = (f.boundaryHaloMask      >> i) & 1;
+  return bits;
+}
+
+function encodeAvatar(input) {
+  const n = (input.trim().replace(/[^A-Za-z0-9_-]/g, '') || 'A').slice(0, MAX_LEN);
+  const len = n.length;
+
+  // Pack chars into structural bits from bit 0 — length encoded externally in clockMask
+  const raw = new Uint8Array(124);
+  for (let c=0;c<len;c++) {
+    const v = CHARSET.indexOf(n[c]);
+    for (let b=0;b<6;b++) raw[c*6+b] = (v >> b) & 1;
+  }
+
+  // Whiten for visual distribution
+  const bits = raw.map((b,i) => b ^ WHITEN[i]);
+
+  // clockMask: 6-bit binary encoding of length (1–20); bit i on = clock position i+1 visible
+  const clockMask = len;
+
+  // Color derived from username — not encoded, just display
+  const ch = hash32(n);
+  const hueBase   = ch % 360;
+  const hueAccent = (hueBase + 130 + ((ch >>> 9) % 70)) % 360;
+
+  return { n, ...bitsToFields(bits), clockMask, hueBase, hueAccent };
+}
+
+function decodeAvatar(params) {
+  const bits = fieldsToBits(params).map((b,i) => b ^ WHITEN[i]); // de-whiten
+  const len = Math.min(params.clockMask, MAX_LEN); // length read from external clock field
+  let result = '';
+  for (let c=0;c<len;c++) {
+    let v = 0;
+    for (let b=0;b<6;b++) v |= bits[c*6+b] << b;
+    result += CHARSET[v] ?? '?';
+  }
+  return result;
+}
+
+function sectorPath(pcx, pcy, r, startDeg, endDeg) {
+  const s = startDeg * Math.PI / 180;
+  const e = endDeg   * Math.PI / 180;
+  const x1 = pcx + r * Math.cos(s), y1 = pcy + r * Math.sin(s);
+  const x2 = pcx + r * Math.cos(e), y2 = pcy + r * Math.sin(e);
+  const large = (endDeg - startDeg) > 180 ? 1 : 0;
+  return `M ${pcx.toFixed(2)} ${pcy.toFixed(2)} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+}
+
+let _rid = 0;
+function renderAvatar(params, size) {
+  const rid = ++_rid;
+  const { petalOuterMask, petalInnerAMask, petalInnerBMask, outerRingMask, centerRing, outerHaloMask, centerHalo, edgeMask, vesicaOuterMask, vesicaInnerMask, vesicaOuterStrokeMask, vesicaInnerStrokeMask, outerNode2Mask, outerRing2Mask, outerHalo2Mask, outerNodeMask, centerNode, outerPipMask, clockMask, boundaryNodeMask, boundaryRingMask, boundaryHaloMask, hueBase, hueAccent } = params;
+  const { nodeSize, ringSize, haloSize, edgeWidth, clockPos, hue: hShift, sat, lit, ringDim } = overrides;
+
+  const cx = size/2, cy = size/2;
+  const pr = size * 0.23;
+  const R  = 2 * pr;
+
+  const ringR = size * 0.0855 * ringSize;
+  const haloR = ringR * 1.4 * haloSize;
+  const vr    = size * 0.028 * nodeSize;
+  const vr2   = vr * 0.5;
+  const pipR  = vr * 0.35;
+
+  const hb = (hueBase  + hShift) % 360;
+  const ha = (hueAccent + hShift) % 360;
+  const c1 = `hsl(${hb},${sat}%,${lit}%)`;
+  const c4 = `hsl(${hb},${sat}%,${Math.max(10,lit-15)}%)`;
+  const alpha = 0.18;
+
+  const petalCenters = Array.from({length:6},(_,i)=>{
+    const a=(i*60-90)*Math.PI/180;
+    return {x:cx+pr*Math.cos(a), y:cy+pr*Math.sin(a)};
+  });
+  const triR = pr;
+  const outerVerts = Array.from({length:6},(_,i)=>{
+    const a=(i*60-90)*Math.PI/180;
+    return {x:cx+triR*Math.cos(a), y:cy+triR*Math.sin(a)};
+  });
+  const verts = [{x:cx,y:cy}, ...outerVerts];
+  // second hex ring: interstitial positions at pr*√3, 30° offset from inner ring
+  const outerVerts2 = Array.from({length:6},(_,i)=>{
+    const a=(i*60-60)*Math.PI/180;
+    return {x:cx+pr*Math.sqrt(3)*Math.cos(a), y:cy+pr*Math.sqrt(3)*Math.sin(a)};
+  });
+  // boundary points: tangent where each petal circle meets the bounding circle (radius R, same angles as inner ring)
+  const boundaryVerts = Array.from({length:6},(_,i)=>{
+    const a=(i*60-90)*Math.PI/180;
+    return {x:cx+R*Math.cos(a), y:cy+R*Math.sin(a)};
+  });
+
+  let p = `<defs><clipPath id="bc${rid}"><circle cx="${cx}" cy="${cy}" r="${R.toFixed(2)}"/></clipPath></defs>`;
+
+  // bounding circle
+  p += `<circle cx="${cx}" cy="${cy}" r="${R.toFixed(2)}" fill="none" stroke="${c4}" stroke-width="0.8" opacity="0.5"/>`;
+
+  // petal circles — three 120° sectors each: outer arc, inner-A, inner-B
+  for (let i=0;i<6;i++){
+    const pt=petalCenters[i];
+    const theta=i*60-90;
+    const col=`hsl(${(hb+i*18)%360},${sat}%,${lit}%)`;
+    const outerA=(petalOuterMask>>i)&1, innerA=(petalInnerAMask>>i)&1, innerB=(petalInnerBMask>>i)&1;
+    const anyActive=outerA||innerA||innerB;
+    for(const[sa,ea,act] of [[theta-120,theta+120,outerA],[theta+120,theta+180,innerA],[theta+180,theta+240,innerB]]){
+      p+=`<path d="${sectorPath(pt.x,pt.y,pr,sa,ea)}"
+        fill="${act?col:'none'}" fill-opacity="${act?alpha+0.04:0}" stroke="none"/>`;
+    }
+    p+=`<circle cx="${pt.x.toFixed(2)}" cy="${pt.y.toFixed(2)}" r="${pr.toFixed(2)}"
+      fill="none" stroke="${col}" stroke-width="${anyActive?1.2:0.6}" opacity="${anyActive?0.85:0.35}"/>`;
+    for(const d of [theta-120,theta+120,theta+180]){
+      const rad=d*Math.PI/180;
+      p+=`<line x1="${pt.x.toFixed(2)}" y1="${pt.y.toFixed(2)}"
+        x2="${(pt.x+pr*Math.cos(rad)).toFixed(2)}" y2="${(pt.y+pr*Math.sin(rad)).toFixed(2)}"
+        stroke="${col}" stroke-width="0.4" opacity="0.3"/>`;
+    }
+  }
+
+  // vesica almonds — split lens with tips at adjacent outer vertices
+  // each half has independent fill and stroke arc (4 bits per almond)
+  for (let i=0;i<6;i++){
+    const v0=outerVerts[i], v1=outerVerts[(i+1)%6];
+    const col=`hsl(${(ha+i*25)%360},${sat}%,${Math.min(90,lit+8)}%)`;
+    const outerA=(vesicaOuterMask>>i)&1, innerA=(vesicaInnerMask>>i)&1;
+    const outerS=(vesicaOuterStrokeMask>>i)&1, innerS=(vesicaInnerStrokeMask>>i)&1;
+    // outer half fill: arc v0→v1 clockwise, chord closes
+    p+=`<path d="M ${v0.x.toFixed(2)} ${v0.y.toFixed(2)} A ${pr.toFixed(2)} ${pr.toFixed(2)} 0 0 1 ${v1.x.toFixed(2)} ${v1.y.toFixed(2)} Z"
+      fill="${col}" fill-opacity="${outerA?0.28:0}" stroke="none"/>`;
+    // inner half fill: chord v0→v1, arc v1→v0 clockwise
+    p+=`<path d="M ${v0.x.toFixed(2)} ${v0.y.toFixed(2)} L ${v1.x.toFixed(2)} ${v1.y.toFixed(2)} A ${pr.toFixed(2)} ${pr.toFixed(2)} 0 0 1 ${v0.x.toFixed(2)} ${v0.y.toFixed(2)} Z"
+      fill="${col}" fill-opacity="${innerA?0.28:0}" stroke="none"/>`;
+    // outer arc stroke (bulges outward)
+    if (outerS || ringDim)
+      p+=`<path d="M ${v0.x.toFixed(2)} ${v0.y.toFixed(2)} A ${pr.toFixed(2)} ${pr.toFixed(2)} 0 0 1 ${v1.x.toFixed(2)} ${v1.y.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="${outerS?1.1:0.5}" opacity="${outerS?0.8:0.2}"/>`;
+    // inner arc stroke (bulges inward)
+    if (innerS || ringDim)
+      p+=`<path d="M ${v1.x.toFixed(2)} ${v1.y.toFixed(2)} A ${pr.toFixed(2)} ${pr.toFixed(2)} 0 0 1 ${v0.x.toFixed(2)} ${v0.y.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="${innerS?1.1:0.5}" opacity="${innerS?0.8:0.2}"/>`;
+  }
+
+  // halo discs — 7 bits (6 outer + 1 center), drawn behind edges — binary on/off
+  for (let i=0;i<6;i++){
+    if (!((outerHaloMask>>i)&1)) continue;
+    const col=`hsl(${(hb+i*18)%360},${sat}%,${lit}%)`;
+    p += `<circle cx="${outerVerts[i].x.toFixed(2)}" cy="${outerVerts[i].y.toFixed(2)}" r="${haloR.toFixed(2)}"
+      fill="${col}" fill-opacity="0.18" stroke="none"/>`;
+  }
+  if (centerHalo) {
+    p += `<circle cx="${cx}" cy="${cy}" r="${haloR.toFixed(2)}"
+      fill="${c1}" fill-opacity="0.18" stroke="none"/>`;
+  }
+
+  // edges
+  const edgeCol = (i,j) => {
+    if (i===0||j===0) return `hsl(${hb},${sat}%,${Math.min(90,lit+18)}%)`;
+    const wrap=Math.min(Math.abs(i-j),6-Math.abs(i-j));
+    return wrap===1
+      ? `hsl(${ha},${sat}%,${Math.min(90,lit+14)}%)`
+      : `hsl(${((hb+ha)/2)|0},${Math.max(0,sat-10)}%,${Math.min(90,lit+22)}%)`;
+  };
+  const baseEW = (i,j) => {
+    if (i===0||j===0) return 1.4;
+    return Math.min(Math.abs(i-j),6-Math.abs(i-j))===1 ? 1.1 : 0.85;
+  };
+
+  for (let e=0;e<18;e++){
+    if (!((edgeMask>>e)&1)) continue;
+    const [i,j]=PAIRS[e];
+    const a=verts[i], b=verts[j];
+    p += `<line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}"
+      x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}"
+      stroke="${edgeCol(i,j)}" stroke-width="${(baseEW(i,j)*edgeWidth).toFixed(2)}"
+      opacity="0.9" stroke-linecap="round"/>`;
+  }
+
+  // vertex dots — crown size by default; large bit → full size
+  for (let i=0;i<7;i++){
+    const v=verts[i];
+    const large = i===0 ? centerNode : (outerNodeMask>>(i-1))&1;
+    const r = large ? vr : vr2;
+    const connected=PAIRS.some(([a,b],e)=>(a===i||b===i)&&((edgeMask>>e)&1));
+    const hue=(hb+(i===0?0:(i-1)*18))%360;
+    const col=`hsl(${hue},${sat}%,${Math.min(90,lit+(connected?28:5))}%)`;
+    p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${r.toFixed(2)}"
+      fill="${col}" opacity="${connected?1:0.3}" stroke="none"/>`;
+  }
+
+  // pips — radially outward from each outer node, landing on the ring circumference
+  for (let i=1;i<7;i++){
+    if (!((outerPipMask>>(i-1))&1)) continue;
+    const v = verts[i];
+    const ang = ((i-1)*60 - 90) * Math.PI/180;
+    const px = v.x + Math.cos(ang) * ringR;
+    const py = v.y + Math.sin(ang) * ringR;
+    const hue = (hb + (i-1)*18) % 360;
+    p += `<circle cx="${px.toFixed(2)}" cy="${py.toFixed(2)}" r="${pipR.toFixed(2)}"
+      fill="hsl(${hue},${sat}%,${Math.min(90,lit+35)}%)" opacity="0.95" stroke="none"/>`;
+  }
+
+  // clock cluster — 6 positions in the dark band between crown (pr*√3) and bounding circle (2*pr)
+  // position i+1 signature: posNum bits — dot(1) | ring(2) | halo-fill(4), binary counting 1–6
+  const clockRadius = pr * clockPos;
+  const clockRingR  = pipR * 2;
+  const clockVerts  = Array.from({length:6}, (_, i) => {
+    const a = (i*60 - 90) * Math.PI/180;
+    return { x: cx + clockRadius*Math.cos(a), y: cy + clockRadius*Math.sin(a) };
+  });
+  for (let i=0; i<6; i++) {
+    if (!((clockMask >> i) & 1)) continue;
+    const v = clockVerts[i];
+    const posNum = i + 1;
+    const showDot  = !!(posNum & 1);
+    const showRing = !!(posNum & 2);
+    const showHalo = !!(posNum & 4);
+    const col = `hsl(${(hb + i*60) % 360},${sat}%,${Math.min(90,lit+15)}%)`;
+    if (showHalo)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${clockRingR.toFixed(2)}"
+        fill="${col}" fill-opacity="0.35" stroke="none"/>`;
+    if (showRing)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${clockRingR.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="0.8" opacity="0.85"/>`;
+    if (showDot)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${pipR.toFixed(2)}"
+        fill="${col}" opacity="0.95" stroke="none"/>`;
+  }
+
+  // outer vertex rings — 6 bits
+  for (let i=0;i<6;i++){
+    const active=(outerRingMask>>i)&1;
+    if (!active && !ringDim) continue;
+    const col=`hsl(${(hb+i*18)%360},${sat}%,${lit}%)`;
+    p += `<circle cx="${outerVerts[i].x.toFixed(2)}" cy="${outerVerts[i].y.toFixed(2)}" r="${ringR.toFixed(2)}"
+      fill="none" stroke="${col}" stroke-width="${active?1.1:0.6}" opacity="${active?0.85:0.2}"/>`;
+  }
+
+  // center ring — 1 bit (bit 12 of h0)
+  if (centerRing || ringDim) {
+    p += `<circle cx="${cx}" cy="${cy}" r="${ringR.toFixed(2)}"
+      fill="none" stroke="${c1}" stroke-width="${centerRing?1.1:0.6}" opacity="${centerRing?0.85:0.2}"/>`;
+  }
+
+  // outer ring 2 — 6 nodes, disconnected, 3 bits each (halo, dot, ring), accent hue, half size
+  const ringR2 = ringR * 0.5, haloR2 = haloR * 0.5;
+  for (let i=0;i<6;i++){
+    const v=outerVerts2[i];
+    const col=`hsl(${(ha+i*30)%360},${sat}%,${Math.min(90,lit+5)}%)`;
+    if ((outerHalo2Mask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${haloR2.toFixed(2)}"
+        fill="${col}" fill-opacity="0.18" stroke="none"/>`;
+    if ((outerNode2Mask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${vr2.toFixed(2)}"
+        fill="${col}" opacity="0.9" stroke="none"/>`;
+    if ((outerRing2Mask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${ringR2.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="0.8" opacity="0.85"/>`;
+    else if (ringDim)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${ringR2.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="0.4" opacity="0.2"/>`;
+  }
+
+  // boundary nodes — tangent points on the bounding circle (dot fully visible, ring/halo clip to crescents)
+  const bRingR = ringR * 0.5, bHaloR = haloR * 0.5;
+  for (let i=0;i<6;i++){
+    const v = boundaryVerts[i];
+    const col = `hsl(${(hb+i*18)%360},${sat}%,${Math.min(90,lit+5)}%)`;
+    if ((boundaryHaloMask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${bHaloR.toFixed(2)}"
+        fill="${col}" fill-opacity="0.18" stroke="none" clip-path="url(#bc${rid})"/>`;
+    if ((boundaryRingMask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${bRingR.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="0.8" opacity="0.85" clip-path="url(#bc${rid})"/>`;
+    else if (ringDim)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${bRingR.toFixed(2)}"
+        fill="none" stroke="${col}" stroke-width="0.4" opacity="0.2" clip-path="url(#bc${rid})"/>`;
+    if ((boundaryNodeMask>>i)&1)
+      p += `<circle cx="${v.x.toFixed(2)}" cy="${v.y.toFixed(2)}" r="${vr2.toFixed(2)}"
+        fill="${col}" opacity="0.9" stroke="none"/>`;
+  }
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"
+    style="border-radius:50%;display:block;background:#08080f;">${p}</svg>`;
+}
+
+function edgeStats(params) {
+  const { edgeMask, vesicaOuterMask, vesicaInnerMask, vesicaOuterStrokeMask, vesicaInnerStrokeMask, outerRingMask, centerRing, outerHaloMask, centerHalo, outerNode2Mask, outerRing2Mask, outerHalo2Mask, outerPipMask, clockMask, boundaryNodeMask, boundaryRingMask, boundaryHaloMask } = params;
+  const total=PAIRS.reduce((s,_,e)=>s+((edgeMask>>e)&1),0);
+  const hub=PAIRS.filter(([i,j],e)=>(i===0||j===0)&&((edgeMask>>e)&1)).length;
+  const ring=PAIRS.filter(([i,j],e)=>{
+    if(i===0||j===0)return false;
+    return Math.min(Math.abs(i-j),6-Math.abs(i-j))===1&&((edgeMask>>e)&1);
+  }).length;
+  const vesicaCount=Array.from({length:6},(_,i)=>((vesicaOuterMask>>i)&1)+((vesicaInnerMask>>i)&1)+((vesicaOuterStrokeMask>>i)&1)+((vesicaInnerStrokeMask>>i)&1)).reduce((a,b)=>a+b,0);
+  const ringCount=Array.from({length:6},(_,i)=>(outerRingMask>>i)&1).reduce((a,b)=>a+b,0)+centerRing;
+  const haloCount=Array.from({length:6},(_,i)=>(outerHaloMask>>i)&1).reduce((a,b)=>a+b,0)+centerHalo;
+  const outer2Count=Array.from({length:6},(_,i)=>((outerNode2Mask>>i)&1)+((outerRing2Mask>>i)&1)+((outerHalo2Mask>>i)&1)).reduce((a,b)=>a+b,0);
+  const pipCount=Array.from({length:6},(_,i)=>(outerPipMask>>i)&1).reduce((a,b)=>a+b,0);
+  const clockCount=Array.from({length:6},(_,i)=>(clockMask>>i)&1).reduce((a,b)=>a+b,0);
+  const boundaryCount=Array.from({length:6},(_,i)=>((boundaryNodeMask>>i)&1)+((boundaryRingMask>>i)&1)+((boundaryHaloMask>>i)&1)).reduce((a,b)=>a+b,0);
+  return { total, hub, ring, chord:total-hub-ring, vesicaCount, ringCount, haloCount, outer2Count, pipCount, clockCount, boundaryCount };
+}
+
+function onToggle() {
+  overrides.ringDim = !overrides.ringDim;
+  const track = document.getElementById('toggleTrack');
+  const text  = document.getElementById('toggleText');
+  track.className = 'toggle-track' + (overrides.ringDim ? ' on' : '');
+  text.textContent = overrides.ringDim ? 'dim' : 'absent';
+  if (currentParams) { document.getElementById('mainAvatar').innerHTML = renderAvatar(currentParams, MAIN_SIZE); buildGallery(); }
+}
+
+function onSlider(key, el) {
+  overrides[key] = parseFloat(el.value);
+  const fmt = { nodeSize:v=>`${v.toFixed(1)}×`, ringSize:v=>`${v.toFixed(1)}×`, haloSize:v=>`${v.toFixed(1)}×`, edgeWidth:v=>`${v.toFixed(1)}×`, clockPos:v=>`${v.toFixed(2)}`, hue:v=>`${Math.round(v)}°`, sat:v=>`${Math.round(v)}%`, lit:v=>`${Math.round(v)}%` };
+  const ids  = { nodeSize:'vNodeSize', ringSize:'vRingSize', haloSize:'vHaloSize', edgeWidth:'vEdgeWidth', clockPos:'vClockPos', hue:'vHue', sat:'vSat', lit:'vLit' };
+  document.getElementById(ids[key]).textContent = fmt[key](overrides[key]);
+  if (currentParams) { document.getElementById('mainAvatar').innerHTML = renderAvatar(currentParams, MAIN_SIZE); buildGallery(); }
+}
+
+function exportSVG(mult) {
+  if (!currentParams) return;
+  const name = (document.getElementById('nameInput').value.trim().replace(/[^A-Za-z0-9_-]/g,'') || 'avatar');
+  const s = MAIN_SIZE, r = s / 2, out = s * mult;
+  const inner = renderAvatar(currentParams, s);
+  const content = (inner.match(/<svg[^>]*>([\s\S]*)<\/svg>/) || [])[1] || '';
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="${out}" height="${out}" viewBox="0 0 ${s} ${s}" xmlns="http://www.w3.org/2000/svg">
+  <defs><clipPath id="c"><circle cx="${r}" cy="${r}" r="${r}"/></clipPath></defs>
+  <rect width="${s}" height="${s}" rx="${r}" ry="${r}" fill="#08080f"/>
+  <g clip-path="url(#c)">${content}</g>
+</svg>`;
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'})),
+    download: `${name}-avatar-${out}px.svg`
+  });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function renderFromInput() {
+  const name = document.getElementById('nameInput').value;
+  if (!name.trim()) return;
+  currentParams = encodeAvatar(name);
+  document.getElementById('mainAvatar').innerHTML = renderAvatar(currentParams, MAIN_SIZE);
+  document.getElementById('avatarName').textContent = name.trim();
+  const row = document.getElementById('exportRow');
+  row.style.opacity = '1'; row.style.pointerEvents = 'auto';
+  const { total, hub, ring, chord, vesicaCount, ringCount, haloCount, outer2Count, pipCount, clockCount, boundaryCount } = edgeStats(currentParams);
+  const decoded = decodeAvatar(currentParams);
+  const badges = [`${total}/18 edges`,`hub: ${hub}`,`ring: ${ring}`,`chord: ${chord}`,`vesicae: ${vesicaCount}/24`,`rings: ${ringCount}/7`,`halos: ${haloCount}/7`,`crown: ${outer2Count}/18`,`pips: ${pipCount}/6`,`clock: ${clockCount}/6`,`boundary: ${boundaryCount}/18`,`hue: ${currentParams.hueBase}°`,`decoded: ${decoded}`];
+  document.getElementById('encRow').innerHTML = badges.map(b=>`<span class="enc-badge">${b}</span>`).join('');
+}
+
+function buildGallery() {
+  document.getElementById('gallery').innerHTML = EXAMPLES.map(name => {
+    const p = encodeAvatar(name);
+    return `<div class="gallery-item" onclick="selectName('${name}')">${renderAvatar(p,72)}<span>${name}</span></div>`;
+  }).join('');
+}
+
+function selectName(name) {
+  document.getElementById('nameInput').value = name;
+  renderFromInput();
+}
+
+document.getElementById('nameInput').addEventListener('keydown', e => { if(e.key==='Enter') renderFromInput(); });
+buildGallery();
+renderFromInput();
+</script>
+</body>
+</html>
+
